@@ -1,0 +1,46 @@
+#pragma once
+
+#include <sys/socket.h>
+#include <sys/select.h>
+#include <netinet/in.h>
+#include <iostream>
+#include <strings.h>
+#include <cstring>
+#include <unistd.h>
+#include <cstdio>
+#include <vector>
+#include "Client.hpp"
+
+
+#define MAX_CLIENTS 10
+
+//class Channel;
+
+class Server{
+	private:
+		int socket_fd;
+		int max_fd;
+		int num_clients;
+		std::vector<Client> Clients;
+		// std::vector<Channel> Channels;
+		std::string pass;
+		fd_set read_fds;
+	public:
+		Server();
+		int SetSocketFd();
+		void SetMaxFd(int set);
+		void SetNumClients(int set);
+		fd_set &GetReadFds();
+		int GetSocketFd();
+		int GetMaxFd();
+		int GetNumClients();
+		std::string GetPass();
+		void DecrementNumClients();
+		void AddClient(Client newClient);
+		void SetClientRead();
+		void AcceptClient();
+		void ClientHandle();
+		void Brodcast(const char *msg, int len, int sender_sock);
+
+	
+};
