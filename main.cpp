@@ -30,7 +30,6 @@ int main(){
 		}
 		vars.AcceptClient();
 		vars.ClientHandle();
-		write(1, "hi", 3);
     }
 	close(vars.GetSocketFd());
 	return (0);

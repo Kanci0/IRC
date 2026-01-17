@@ -36,6 +36,7 @@ void Server::AcceptClient(){
 			Client *tmp = new Client();
 			int new_sock = accept(socket_fd, NULL, NULL);
 			tmp->set_fd(new_sock);
+			num_clients++;
 			AddClient(*tmp);
 			const char *msg = "client connected to chat to connect to channel you need to fill credentials use commands pass - for password/ nick - for nickname\r\n";
 			send(new_sock, msg,strlen(msg), 0);
