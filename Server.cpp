@@ -1,14 +1,13 @@
 #include "Server.hpp"
 
-
 Server::Server(){
 	num_clients = 0;
 }
 
-void Server::Brodcast(const char *msg, int len, int sender_sock){
+void Server::Brodcast(const char *msg, int len, Client &sender){
 	for (int i = 0; i < num_clients; i++){
-		if (Clients[i].get_fd() != sender_sock){
-			int n = send(Clients[i].get_fd(),msg, len, 0);
+		if (Clients[i].get_fd() != sender.get_fd()){
+			int n = send(Clients[i].get_fd(), msg, len, 0);
 			if (n < 0){
 				perror("send error");
 				return;
@@ -20,8 +19,10 @@ void Server::Brodcast(const char *msg, int len, int sender_sock){
 int Server::GetMaxFd(){ return max_fd; };
 int Server::SetSocketFd(){ return (socket_fd = socket(AF_INET, SOCK_STREAM, 0)); }
 void Server::SetMaxFd(int set) { max_fd = set; };
+void Server::SetPassword(std::string password){ pass = password; };
 int Server::GetSocketFd(){ return socket_fd; };
 fd_set& Server::GetReadFds(){ return read_fds; };
+std::string Server::GetPass(){ return pass; };
 void Server::DecrementNumClients(){ num_clients--; };
 void Server::SetClientRead(){
 	for (int i = 0; i < num_clients; i++){
@@ -45,16 +46,19 @@ void Server::AcceptClient(){
 
 void Server::ClientHandle(){
 	for (int i = 0; i < num_clients; i++) {
-        	if (FD_ISSET(Clients[i].get_fd(), &read_fds)) {
+        	if (FD_ISSET(Clients[i].get_fd(), &read_fds) ) {
             	char buffer[1024];
             	int n = recv(Clients[i].get_fd(), buffer, sizeof(buffer), 0);
+				buffer[n] = '\0';
             	if (n <= 0) {
                 	close(Clients[i].get_fd());
                 	Clients.erase(Clients.begin() + i);
                 	num_clients--;
                 	i--;
             	} else {
-                	Brodcast(buffer, n, Clients[i].get_fd());
+					std::cout << "checking input " << std::endl;
+					CheckInput(buffer, n, Clients[i]);
+                	// Brodcast(buffer, n, Clients[i].get_fd());
             	}
         }
 	}
@@ -63,3 +67,53 @@ void Server::ClientHandle(){
 void Server::AddClient(Client newClient){
 	Clients.push_back(newClient);
 }
+
+void Server::VerifyCredentials(Client client){
+	if (client.get_pass() == pass && !client.get_nick().empty()){
+		for (int i = 0; i < num_clients; i++){
+			if (Clients[i].get_nick() != client.get_nick() && Clients[i].get_pass() != client.get_pass()){
+				continue;
+			}
+			else if (Clients[i].get_fd() == client.get_fd()){
+				continue;
+			}
+			else{
+				const char *msg = "Nickname or password already in use\r\n";
+				int n = send(client.get_fd(), msg, strlen(msg), 0);
+				if (n < 0){
+					perror("send error");
+					return;
+				}
+			}
+		}	
+		client.set_authenticated(true);
+		    std::string tmp = "Client " + client.get_nick() + " succesfully aut";
+        const char* msg = tmp.c_str();
+        int n = send(client.get_fd(), msg, strlen(msg), 0);
+		if (n < 0){
+			perror("send error");
+			return;
+		}
+	}
+};
+int Server::CheckInput(char *buffer, int n, Client &client){
+	std::string buf = buffer;
+	if(buf.substr(0, 4) == "PASS")
+		Commands::PASS(client ,buf.substr(5, std::string::npos));
+	else if(buf.substr(0, 4) == "NICK")
+		Commands::NICK(client, buf.substr(5, std::string::npos));
+	else if(buf.substr(0, 6) == "VERIFY")
+		Commands::VERIFY(*this, client);
+	else if (client.get_authenticated())
+		Brodcast(buffer, n, client);
+	else{
+		std::string tmp = "Nun authenticated Client " + client.get_nick() + " cannot use chat please fill your password with PASS and nickname with NICK and use VERIFY COMMAND";
+        const char* msg = tmp.c_str();
+        int n = send(client.get_fd(), msg, strlen(msg), 0);
+		if (n < 0){
+			perror("send error");
+			return -1;
+		}
+	}
+	return 1;
+};

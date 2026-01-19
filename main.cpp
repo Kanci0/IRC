@@ -1,4 +1,6 @@
 #include "Server.hpp"
+#include "Commands.hpp"
+
 
 int main(){
 	Server vars;
@@ -7,6 +9,7 @@ int main(){
 		std::cout << "socket Error";
 		return 1; 
 	}
+	vars.SetPassword("Jezus");
 	my_addr.sin_family = AF_INET;
 	my_addr.sin_port = htons(5150);
 	my_addr.sin_addr.s_addr = htonl(INADDR_ANY);

@@ -10,7 +10,7 @@
 #include <cstdio>
 #include <vector>
 #include "Client.hpp"
-
+#include "Commands.hpp"
 
 #define MAX_CLIENTS 10
 
@@ -30,6 +30,7 @@ class Server{
 		int SetSocketFd();
 		void SetMaxFd(int set);
 		void SetNumClients(int set);
+		void SetPassword(std::string password);
 		fd_set &GetReadFds();
 		int GetSocketFd();
 		int GetMaxFd();
@@ -40,7 +41,7 @@ class Server{
 		void SetClientRead();
 		void AcceptClient();
 		void ClientHandle();
-		void Brodcast(const char *msg, int len, int sender_sock);
-
-	
+		void Brodcast(const char *msg, int len, Client &sender);
+		void VerifyCredentials(Client client);
+		int CheckInput(char *buffer, int n, Client &client);	
 };

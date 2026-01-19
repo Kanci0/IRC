@@ -1,6 +1,7 @@
 FILES = main \
 		Client \
 		Server \
+		Commands
 
 COMPILER = g++
 
