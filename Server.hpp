@@ -42,6 +42,6 @@ class Server{
 		void AcceptClient();
 		void ClientHandle();
 		void Brodcast(const char *msg, int len, Client &sender);
-		void VerifyCredentials(Client client);
+		void VerifyCredentials(Client &client);
 		int CheckInput(char *buffer, int n, Client &client);	
 };

@@ -19,3 +19,5 @@ class Client{
 		std::string get_pass();
 		int get_fd();
 };
+
+std::string trimCRLF(std::string& s);

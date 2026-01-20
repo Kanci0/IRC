@@ -5,13 +5,13 @@ Server::Server(){
 }
 
 void Server::Brodcast(const char *msg, int len, Client &sender){
+	std::string str = "[ " + sender.get_nick() + " ] " + msg;
+	(void)len; 
 	for (int i = 0; i < num_clients; i++){
-		if (Clients[i].get_fd() != sender.get_fd()){
-			int n = send(Clients[i].get_fd(), msg, len, 0);
-			if (n < 0){
-				perror("send error");
-				return;
-			}
+		int n = send(Clients[i].get_fd(), str.c_str(), str.size(), 0);
+		if (n < 0){
+			perror("send error");
+			return;
 		}
 	}
 };
@@ -49,17 +49,17 @@ void Server::ClientHandle(){
         	if (FD_ISSET(Clients[i].get_fd(), &read_fds) ) {
             	char buffer[1024];
             	int n = recv(Clients[i].get_fd(), buffer, sizeof(buffer), 0);
-				buffer[n] = '\0';
             	if (n <= 0) {
-                	close(Clients[i].get_fd());
+					close(Clients[i].get_fd());
                 	Clients.erase(Clients.begin() + i);
                 	num_clients--;
                 	i--;
-            	} else {
-					std::cout << "checking input " << std::endl;
-					CheckInput(buffer, n, Clients[i]);
+					continue;
+				}
+				buffer[n] = '\0';
+				std::cout << "checking input " << std::endl;
+				CheckInput(buffer, n, Clients[i]);
                 	// Brodcast(buffer, n, Clients[i].get_fd());
-            	}
         }
 	}
 };
@@ -68,10 +68,10 @@ void Server::AddClient(Client newClient){
 	Clients.push_back(newClient);
 }
 
-void Server::VerifyCredentials(Client client){
+void Server::VerifyCredentials(Client &client){
 	if (client.get_pass() == pass && !client.get_nick().empty()){
 		for (int i = 0; i < num_clients; i++){
-			if (Clients[i].get_nick() != client.get_nick() && Clients[i].get_pass() != client.get_pass()){
+			if (Clients[i].get_nick() != client.get_nick()){
 				continue;
 			}
 			else if (Clients[i].get_fd() == client.get_fd()){
@@ -87,7 +87,7 @@ void Server::VerifyCredentials(Client client){
 			}
 		}	
 		client.set_authenticated(true);
-		    std::string tmp = "Client " + client.get_nick() + " succesfully aut";
+		std::string tmp = "Client " + client.get_nick() + " succesfully aut";
         const char* msg = tmp.c_str();
         int n = send(client.get_fd(), msg, strlen(msg), 0);
 		if (n < 0){
