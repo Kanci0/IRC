@@ -9,9 +9,11 @@
 #include <unistd.h>
 #include <cstdio>
 #include <vector>
+#include <fcntl.h>
+#include <algorithm>
+#include <cerrno>
 #include "Client.hpp"
 #include "Commands.hpp"
-
 #define MAX_CLIENTS 10
 
 //class Channel;
@@ -41,7 +43,9 @@ class Server{
 		void SetClientRead();
 		void AcceptClient();
 		void ClientHandle();
-		void Brodcast(const char *msg, int len, Client &sender);
+		void Brodcast(const std::string *msg, int len, Client &sender);
 		void VerifyCredentials(Client &client);
-		int CheckInput(char *buffer, int n, Client &client);	
+		int CheckInput(const std::vector<char> buffer, int n, Client &client);	
 };
+
+int set_nonblocking(int fd);

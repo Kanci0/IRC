@@ -7,14 +7,23 @@ Client::Client(){
     is_authenticated = false;
 }
 
+
 void Client::set_fd(int fd){ this->fd = fd; };
 void Client::set_nick(std::string nick){nickname = nick; };
 void Client::set_pass(std::string pass){password = pass; };
 void Client::set_authenticated(bool authenticated){ is_authenticated = authenticated; };
+void Client::set_len(int l){ len = l; };
 int Client::get_fd(){ return fd; };
 std::string Client::get_nick(){ return trimCRLF(nickname); };
 std::string Client::get_pass(){ return trimCRLF(password); };
 bool Client::get_authenticated(){ return is_authenticated; };
+int Client::get_len() { return len; }
+const std::vector<char>& Client::getBuffer() const { return buffer; }
+void Client::appendToBuffer(const char* data, size_t len){ buffer.insert(buffer.end(), data, data + len); };
+void Client::removeFromBuffer(size_t len){
+    if (len > buffer.size()) len = buffer.size();
+    buffer.erase(buffer.begin(), buffer.begin() + len);
+};
 
 std::string trimCRLF(std::string& s){
     while (!s.empty() && (s[s.size() - 1] == '\n' || s[s.size() - 1] == '\r'))

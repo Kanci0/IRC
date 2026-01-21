@@ -9,6 +9,7 @@ void Commands::NICK(Client &client, const std::string &nick) {
 			perror("send error");
 			return;
 		}
+        return ;
     }
     client.set_nick(nick);
 };
