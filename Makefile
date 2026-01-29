@@ -1,9 +1,10 @@
 FILES = main \
 		Client \
 		Server \
-		Commands
+		Commands \
+		Channel
 
-COMPILER = g++
+COMPILER = c++
 
 FLAGS = -Wall -Wextra -Werror -std=c++98
 
@@ -11,7 +12,7 @@ CFILES = $(FILES:%=%.cpp)
 
 OFILES = $(FILES:%=%.o)
 
-NAME	= Bureaucrat
+NAME	= ircserv
 
 $(NAME):
 			$(COMPILER) $(FLAGS) $(CFILES) -o $(NAME)

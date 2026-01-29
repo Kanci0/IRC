@@ -8,15 +8,19 @@ class Client{
 		int fd;
 		std::string nickname;
 		std::string password;
+		std::string username;
 		bool is_authenticated;
+		bool has_user;
 		std::vector<char> buffer;
 		int len;
-		int operator;
+		// int operator;
 	public:
 		Client();
 		void set_fd(int fd);
 		void set_nick(std::string nick);
 		void set_pass(std::string pass);
+		void set_username(std::string username);
+		bool hasUser() const;
 		void set_authenticated(bool authenticated);
 		void set_len(int l);
 		const std::vector<char>& getBuffer() const;

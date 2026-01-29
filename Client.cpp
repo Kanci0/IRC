@@ -1,16 +1,13 @@
 #include "Client.hpp"
 
-Client::Client(){
-    fd = -1;
-    nickname = "";
-    password = "";
-    is_authenticated = false;
-}
+Client::Client() : fd(-1), nickname(""), password(""), username(""), is_authenticated(false), has_user(false)  {} 
 
 
 void Client::set_fd(int fd){ this->fd = fd; };
 void Client::set_nick(std::string nick){nickname = nick; };
 void Client::set_pass(std::string pass){password = pass; };
+void Client::set_username(std::string user) {username = user; has_user = true;};
+bool Client::hasUser() const { return has_user; };
 void Client::set_authenticated(bool authenticated){ is_authenticated = authenticated; };
 void Client::set_len(int l){ len = l; };
 int Client::get_fd(){ return fd; };

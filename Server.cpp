@@ -79,9 +79,20 @@ void Server::ClientHandle(){
 					if (it == buf.end())
 						break;
 					int msg_len = it - buf.begin() + 1;
-					CheckInput(buf, n, Clients[i]);
 
-					Clients[i].removeFromBuffer(msg_len);
+						// WYTNJ JEDNĄ LINIĘ
+						std::string line(buf.begin(), buf.begin() + msg_len);
+						std::cout << "RAW LINE: [" << line << std::endl;
+
+						// PRZEKAŻ TYLKO JEDNĄ LINIĘ
+						CheckInput(
+							std::vector<char>(line.begin(), line.end()),
+							msg_len,
+							Clients[i]
+						);
+
+						// USUŃ JĄ Z BUFORA
+						Clients[i].removeFromBuffer(msg_len);
 				}
 				std::cout << "checking input " << std::endl;
                 	// Brodcast(buffer, n, Clients[i].get_fd());
@@ -91,6 +102,7 @@ void Server::ClientHandle(){
 
 void Server::AddClient(Client newClient){
 	Clients.push_back(newClient);
+	// dodanie klienta do kanalu general
 }
 
 void Server::VerifyCredentials(Client &client){
@@ -112,7 +124,7 @@ void Server::VerifyCredentials(Client &client){
 			}
 		}	
 		client.set_authenticated(true);
-		std::string tmp = "Client " + client.get_nick() + " succesfully aut";
+		std::string tmp = ":server 001 " + client.get_nick() + " :Welcome to the Internet Relay Network\r\n";
         const char* msg = tmp.c_str();
         int n = send(client.get_fd(), msg, strlen(msg), 0);
 		if (n < 0){
@@ -121,24 +133,82 @@ void Server::VerifyCredentials(Client &client){
 		}
 	}
 };
-int Server::CheckInput(const std::vector<char> buffer, int n, Client &client){
-	std::string buf(buffer.begin(), buffer.end());
-	if(buf.substr(0, 4) == "PASS")
-		Commands::PASS(client ,buf.substr(5, std::string::npos));
-	else if(buf.substr(0, 4) == "NICK")
-		Commands::NICK(client, buf.substr(5, std::string::npos));
-	else if(buf.substr(0, 6) == "VERIFY")
-		Commands::VERIFY(*this, client);
-	else if (client.get_authenticated())
-		Brodcast(&buf, n, client);
-	else{
-		std::string tmp = "Nun authenticated Client " + client.get_nick() + " cannot use chat please fill your password with PASS and nickname with NICK and use VERIFY COMMAND";
-        const char* msg = tmp.c_str();
-        int n = send(client.get_fd(), msg, strlen(msg), 0);
-		if (n < 0){
-			perror("send error");
-			return -1;
-		}
+
+int Server::CheckInput(const std::vector<char> buffer, int n, Client &client)
+{
+    std::string buf(buffer.begin(), buffer.end());
+
+	if (buf.compare(0, 4, "PING") == 0)
+	{
+		std::string token = buf.substr(5);
+		std::string pong = "PONG :" + token;
+		send(client.get_fd(), pong.c_str(), pong.size(), 0);
+		return 1;
 	}
-	return 1;
-};
+
+    if (buf.substr(0, 4) == "PASS")
+        Commands::PASS(client, buf.substr(5));
+    else if (buf.substr(0, 4) == "NICK")
+        Commands::NICK(client, buf.substr(5));
+    else if (buf.compare(0, 4, "USER") == 0)
+    {
+        // USER bart 0 * :Bartosz\r\n
+        size_t pos = buf.find(' ');
+        if (pos != std::string::npos)
+        {
+            size_t start = pos + 1;
+            size_t end = buf.find(' ', start);
+            if (end != std::string::npos)
+            {
+                std::string username = buf.substr(start, end - start);
+                client.set_username(username);
+            }
+        }
+    }
+	else if (buf.compare(0, 4, "JOIN") == 0)
+		JoinHandler(buf, client);
+    else if (client.get_authenticated())
+    {
+        Brodcast(&buf, n, client);
+    }
+
+    // 🔑 AUTORYZACJA IRC (PO KAŻDEJ KOMENDZIE)
+    if (!client.get_authenticated()
+        && !client.get_pass().empty()
+        && !client.get_nick().empty()
+        && client.hasUser())
+    {
+        client.set_authenticated(true);
+
+        std::string welcome =
+            ":ircserv 001 " + client.get_nick() +
+            " :Welcome to the Internet Relay Network\r\n";
+
+        send(client.get_fd(), welcome.c_str(), welcome.size(), 0);
+    }
+    return 1;
+}
+void Server::JoinHandler(const std::string& buf, Client& client) {
+	// rozbic to na funckje
+	size_t pos = buf.find(' ');
+	if (pos == std::string::npos)
+		return ;
+
+	std::string tmp = buf.substr(pos + 1); 
+	std::string channel_name = trimCRLF(tmp);
+	if (channel_name.empty() || channel_name[0] != '#')
+		return ;
+	
+	if (channels.find(channel_name) != channels.end())
+		channels[channel_name].add_user_to_channel(client);
+	else
+	{
+		Channel new_channel;
+		new_channel.set_channel_name(channel_name);
+		new_channel.add_user_to_channel(client);
+		new_channel.add_channel_operator(client);
+		channels[channel_name] = new_channel;
+	}
+	std::string msg = ":" + client.get_nick() + " JOIN " + channel_name + "\r\n";
+	send(client.get_fd(), msg.c_str(), msg.size(), 0);
+}

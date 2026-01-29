@@ -39,6 +39,7 @@ int main(int argc, char **argv){
 			perror("select");
 			continue;
 		}
+		// tutaj utworzyc kanal #general
 		vars.AcceptClient();
 		vars.ClientHandle();
     }

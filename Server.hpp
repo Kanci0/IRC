@@ -1,3 +1,15 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   Server.hpp                                         :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: bkaleta <bkaleta@student.42warsaw.pl>      +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/01/29 21:45:06 by bkaleta           #+#    #+#             */
+/*   Updated: 2026/01/29 21:45:36 by bkaleta          ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #pragma once
 
 #include <sys/socket.h>
@@ -14,6 +26,8 @@
 #include <cerrno>
 #include "Client.hpp"
 #include "Commands.hpp"
+#include "Channel.hpp"
+#include <map>
 #define MAX_CLIENTS 10
 
 //class Channel;
@@ -24,7 +38,7 @@ class Server{
 		int max_fd;
 		int num_clients;
 		std::vector<Client> Clients;
-		// std::vector<Channel> Channels;
+		std::map<std::string, Channel> channels;
 		std::string pass;
 		fd_set read_fds;
 	public:
@@ -45,7 +59,9 @@ class Server{
 		void ClientHandle();
 		void Brodcast(const std::string *msg, int len, Client &sender);
 		void VerifyCredentials(Client &client);
-		int CheckInput(const std::vector<char> buffer, int n, Client &client);	
+		int CheckInput(const std::vector<char> buffer, int n, Client &client);
+		void JoinHandler(const std::string& buf, Client& client);
+		std::vector<std::string> inputHandler();
 };
 
 int set_nonblocking(int fd);
