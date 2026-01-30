@@ -4,6 +4,7 @@
 #include "Server.hpp"
 
 class Server;
+class Channel;
 
 class Commands
 {

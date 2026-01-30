@@ -13,14 +13,19 @@ int set_nonblocking(int fd){
 };
 
 void Server::Brodcast(const std::string *buf, int len, Client &sender){
-	std::string str = "[" + sender.get_nick() + "]: " + *buf;
+	std::string str = ":" + sender.get_nick() + " " + *buf;
 	(void)len; 
+	std::cout << "this is string" << std::endl;
+	std::cout << str;
 	for (int i = 0; i < num_clients; i++){
+		if (Clients[i].get_fd() == sender.get_fd())
+			continue;
 		int n = send(Clients[i].get_fd(), str.c_str(), str.size(), 0);
 		if (n < 0){
 			perror("send error");
 			return;
 		}
+		std::cout << "message sent" << std::endl;
 	}
 };
 
@@ -136,6 +141,7 @@ void Server::VerifyCredentials(Client &client){
 
 int Server::CheckInput(const std::vector<char> buffer, int n, Client &client)
 {
+	(void)n;
     std::string buf(buffer.begin(), buffer.end());
 
 	if (buf.compare(0, 4, "PING") == 0)
@@ -167,10 +173,9 @@ int Server::CheckInput(const std::vector<char> buffer, int n, Client &client)
     }
 	else if (buf.compare(0, 4, "JOIN") == 0)
 		JoinHandler(buf, client);
-    else if (client.get_authenticated())
-    {
-        Brodcast(&buf, n, client);
-    }
+	else if (buf.compare(0, 7, "PRIVMSG") == 0){
+		Brodcast(&buf, buf.size(), client);
+	}
 
     // 🔑 AUTORYZACJA IRC (PO KAŻDEJ KOMENDZIE)
     if (!client.get_authenticated()
@@ -199,8 +204,9 @@ void Server::JoinHandler(const std::string& buf, Client& client) {
 	if (channel_name.empty() || channel_name[0] != '#')
 		return ;
 	
-	if (channels.find(channel_name) != channels.end())
+	if (channels.find(channel_name) != channels.end()){
 		channels[channel_name].add_user_to_channel(client);
+		std::cout << "client: " << client.get_nick() << " added to existing channel" << std::endl;}
 	else
 	{
 		Channel new_channel;
@@ -208,6 +214,7 @@ void Server::JoinHandler(const std::string& buf, Client& client) {
 		new_channel.add_user_to_channel(client);
 		new_channel.add_channel_operator(client);
 		channels[channel_name] = new_channel;
+		std::cout << "client created channel" << std::endl;
 	}
 	std::string msg = ":" + client.get_nick() + " JOIN " + channel_name + "\r\n";
 	send(client.get_fd(), msg.c_str(), msg.size(), 0);
