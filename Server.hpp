@@ -32,6 +32,34 @@
 
 //class Channel;
 
+enum Command{
+	CMD_NICK = 1,
+	CMD_PASS = 2,
+	CMD_PING = 3,
+	CMD_KICK = 4,
+	CMD_INVITE = 5,
+	CMD_TOPIC = 6,
+	CMD_MODE = 7,
+	CMD_NONE = 8
+};
+
+enum ModeNode{
+	M_COMMAND = 1,
+	M_DESTINATION = 2,
+	M_REMOVE = 3,
+	M_ADD = 4,
+	M_FLAG = 5,
+	M_ARGFLAG = 6,
+	M_ARG = 7,
+	M_ERROR = 666
+};
+
+struct ModeSplit{
+	std::string value;
+	std::string node;
+	int node_number;
+};
+
 class Server{
 	private:
 		int socket_fd;
@@ -65,3 +93,6 @@ class Server{
 };
 
 int set_nonblocking(int fd);
+std::vector<std::string> command_split(std::string buf, int option);
+std::vector<ModeSplit> command_split_moode(std::string buf);
+int check_command(std::string buf);

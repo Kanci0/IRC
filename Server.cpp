@@ -4,6 +4,121 @@ Server::Server(){
 	num_clients = 0;
 }
 
+std::vector<std::string> command_split(std::string buf){
+	std::vector<std::string> splitted;
+	size_t i = 0;
+	while(i < buf.size()){
+		while(i < buf.size() && buf[i] == ' ')
+			i++;
+		if (i >= buf.size())
+			break;
+
+		size_t space_index = buf.find(' ', i);
+
+		if (space_index == std::string::npos){
+			splitted.push_back(buf.substr(i));
+			break;
+		}
+		splitted.push_back(buf.substr(i, space_index - i));
+
+		i = space_index + 1;
+	}
+	return splitted;
+};
+
+int check_flag(char a, int sign){
+	if (a == 'k' || a == 'l' || a == 'i' || a == 't' || a == 'o'){
+		if ((a == 'k' && sign == 1) || (a == 'l' && sign == 1)
+			|| a == 'o')
+			return 1;
+		else
+			return 2;
+	}
+	return -1;
+}
+
+void append_node(std::string str, std::vector<ModeSplit>&parsed, int index){
+	ModeSplit tmp;
+	int current_sign;
+	if (index == 0){
+		tmp.value = str;
+		tmp.node_number = M_COMMAND;
+		tmp.node = "COMMAND";
+	}
+	if (index == 1){
+		tmp.value = str;
+		tmp.node_number = M_DESTINATION;
+		tmp.node = "DESTINATION";
+	}
+	if (index == 2){
+		for(size_t i = 0; i < str.size(); i++){
+			if(str[i] == '-') {
+				current_sign = 0;
+				tmp.value = str[i];
+				tmp.node_number = M_REMOVE;
+				tmp.node = "MODE";
+			}
+			else if(str[i] == '+') {
+				current_sign = 1;
+				tmp.value = str[i];
+				tmp.node_number = M_ADD;
+				tmp.node = "MODE";
+			}
+			else if(check_flag(str[i], current_sign) == 1) {
+				tmp.value = str[i];
+				tmp.node_number = M_ARGFLAG;
+				tmp.node = "FLAG";
+			}
+			else if(check_flag(str[i], current_sign) == 2) {
+				tmp.value = str[i];
+				tmp.node_number = M_ARGFLAG;
+				tmp.node = "FLAG";
+			}
+			else {
+				tmp.value = str[i];
+				tmp.node_number = M_ERROR;
+				tmp.node = "ERROR";
+			}
+		}
+	}
+	if (index >= 3){
+		tmp.value = str;
+		tmp.node_number = M_ARG;
+		tmp.node = "ARG";
+	}
+	parsed.push_back(tmp);
+}
+
+std::vector<ModeSplit> command_split_moode(std::string buf){
+	std::vector<std::string> splitted = command_split(buf);
+	std::vector<ModeSplit> parsed;
+
+	for(size_t i = 0; i < splitted.size(); i++){
+		append_node(splitted[i], parsed, i);
+	}
+	return parsed;
+};
+
+
+// enum Command{
+// 	CMD_NICK = 1,
+// 	CMD_PASS = 2,
+// 	CMD_PING = 3,
+// 	CMD_KICK = 4,
+// 	CMD_INVITE = 5,
+// 	CMD_TOPIC = 6,
+// 	CMD_MODE = 7
+// };
+int check_command(std::string buf){
+	if(buf.compare(0, 4, "NICK")) return CMD_NICK;
+	if(buf.compare(0, 4, "PASS")) return CMD_PASS;
+	if(buf.compare(0, 4, "PING")) return CMD_PING;
+	if(buf.compare(0, 4, "KICK")) return CMD_KICK;
+	if(buf.compare(0, 6, "INVITE")) return CMD_INVITE;
+	if(buf.compare(0, 5, "TOPIC")) return CMD_TOPIC;
+	if(buf.compare(0, 4, "MODE")) return CMD_MODE;
+	return CMD_NONE;
+};
 
 int set_nonblocking(int fd){
 	int flags = fcntl(fd, F_GETFL, 0);
@@ -151,7 +266,6 @@ int Server::CheckInput(const std::vector<char> buffer, int n, Client &client)
 		send(client.get_fd(), pong.c_str(), pong.size(), 0);
 		return 1;
 	}
-
     if (buf.substr(0, 4) == "PASS")
         Commands::PASS(client, buf.substr(5));
     else if (buf.substr(0, 4) == "NICK")
@@ -183,13 +297,15 @@ int Server::CheckInput(const std::vector<char> buffer, int n, Client &client)
         && !client.get_nick().empty()
         && client.hasUser())
     {
-        client.set_authenticated(true);
+		Commands::VERIFY(*this, client);
+        if(client.get_authenticated() == true){
 
         std::string welcome =
             ":ircserv 001 " + client.get_nick() +
             " :Welcome to the Internet Relay Network\r\n";
 
         send(client.get_fd(), welcome.c_str(), welcome.size(), 0);
+		}
     }
     return 1;
 }
