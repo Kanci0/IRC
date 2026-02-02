@@ -4,11 +4,94 @@ Server::Server(){
 	num_clients = 0;
 }
 
+void passwd(Client &client, const std::vector<std::string> &pass) {
+    if (client.get_authenticated() == true) {
+                std::string tmp = "Client " + client.get_nick() + " cannot change password after authentication\r\n";
+        const char* msg = tmp.c_str();
+        int n = send(client.get_fd(), msg, strlen(msg), 0);
+        if (n < 0){
+			perror("send error");
+			return;
+		}
+    }
+    client.set_pass(pass[1]);
+
+};
+
+void nick(Client &client, const std::vector<std::string> &nick) {
+    if (client.get_authenticated() == true ){
+        std::string tmp = "Client " + client.get_nick() + " cannot change nickname after authentication\r\n";
+        const char* msg = tmp.c_str();
+        int n = send(client.get_fd(), msg, strlen(msg), 0);
+        if (n < 0){
+			perror("send error");
+			return;
+		}
+        return ;
+    }
+    client.set_nick(nick[1]);
+};
+
+void verify(Server &server, Client &client) {
+    if (client.get_authenticated()) {
+        std::string tmp = "Client " + client.get_nick() + " is already authenticated\r\n";
+        int n = send(client.get_fd(), tmp.c_str(), tmp.size(), 0);
+        if (n < 0){
+			perror("send error");
+			return;
+		}
+        return;
+    }
+    if (client.get_pass() == server.GetPass() && !client.get_nick().empty()) {
+        std::string tmp = "Client " + client.get_nick() + " starting auth\r\n";
+        int n = send(client.get_fd(), tmp.c_str(), tmp.size(), 0);
+        if (n < 0){
+			perror("send error");
+			return;
+		}
+        server.VerifyCredentials(client);
+    }
+};
+
+void Server::KickHandler(Client &client, const std::vector<std::string> &kick){
+	if (kick.size() <= 2 && kick.size() >= 5)
+		return ;
+	std::string mssg = "hello\r\n";
+	std::cout << mssg;
+	send(client.get_fd(), mssg.c_str(), mssg.size(), 0);
+	std::string channel_name = kick[1];
+	if (channel_name.empty() || channel_name[0] != '#')
+		return ;
+	
+	if (channels.find(channel_name) != channels.end()){
+		if (channels[channel_name].is_channel_operator(client)){
+			Client *target = CheckUserExistance2(kick[2]);
+			if (target == NULL)
+				return ;
+			if(channels[channel_name].is_channel_user(*target)){
+				std::string msg = ":" + client.get_nick() + "!" + client.get_user() + "@localhost" + " " + kick[0] + " " + kick[1] + " " + kick[2] +"\r\n";
+				std::cout << msg;
+				channels[channel_name].remove_user_from_channel(*target);
+				send(target->get_fd(), msg.c_str(), msg.size(), 0);
+				
+			}
+		}
+	}
+	
+
+}; 
+
+
+void print_splitted_mode(std::vector<ModeSplit> res){
+	for (size_t i = 0; i < res.size(); i++)
+		std::cout << res[i].value << " " << res[i].node << std::endl;
+};
+
 std::vector<std::string> command_split(std::string buf){
 	std::vector<std::string> splitted;
 	size_t i = 0;
-	while(i < buf.size()){
-		while(i < buf.size() && buf[i] == ' ')
+	while (i < buf.size()){
+		while (i < buf.size() && buf[i] == ' ')
 			i++;
 		if (i >= buf.size())
 			break;
@@ -44,11 +127,13 @@ void append_node(std::string str, std::vector<ModeSplit>&parsed, int index){
 		tmp.value = str;
 		tmp.node_number = M_COMMAND;
 		tmp.node = "COMMAND";
+		parsed.push_back(tmp);
 	}
 	if (index == 1){
 		tmp.value = str;
 		tmp.node_number = M_DESTINATION;
 		tmp.node = "DESTINATION";
+		parsed.push_back(tmp);
 	}
 	if (index == 2){
 		for(size_t i = 0; i < str.size(); i++){
@@ -79,17 +164,18 @@ void append_node(std::string str, std::vector<ModeSplit>&parsed, int index){
 				tmp.node_number = M_ERROR;
 				tmp.node = "ERROR";
 			}
+			parsed.push_back(tmp);
 		}
 	}
 	if (index >= 3){
 		tmp.value = str;
 		tmp.node_number = M_ARG;
 		tmp.node = "ARG";
+		parsed.push_back(tmp);
 	}
-	parsed.push_back(tmp);
 }
 
-std::vector<ModeSplit> command_split_moode(std::string buf){
+std::vector<ModeSplit> command_split_mode(std::string buf){
 	std::vector<std::string> splitted = command_split(buf);
 	std::vector<ModeSplit> parsed;
 
@@ -127,21 +213,27 @@ int set_nonblocking(int fd){
 	return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 };
 
-void Server::Brodcast(const std::string *buf, int len, Client &sender){
-	std::string str = ":" + sender.get_nick() + " " + *buf;
+void Server::Brodcast(const std::string *buf, std::vector<std::string> strr, int len, Client &sender){
+	std::string str = ":" + sender.get_nick() + " " + *buf + "\r\n";
 	(void)len; 
 	std::cout << "this is string" << std::endl;
 	std::cout << str;
-	for (int i = 0; i < num_clients; i++){
-		if (Clients[i].get_fd() == sender.get_fd())
-			continue;
-		int n = send(Clients[i].get_fd(), str.c_str(), str.size(), 0);
-		if (n < 0){
-			perror("send error");
-			return;
+	std::string channel_name = strr[1];
+	if (channels.find(channel_name) != channels.end()){
+		if(channels[channel_name].is_channel_user(sender)){
+			for (int i = 0; i < num_clients; i++){
+				if (Clients[i].get_fd() == sender.get_fd())
+					continue;
+				int n = send(Clients[i].get_fd(), str.c_str(), str.size(), 0);
+				if (n < 0){
+					perror("send error");
+					return;
+				}
+				std::cout << "message sent" << std::endl;
+			}
 		}
-		std::cout << "message sent" << std::endl;
 	}
+
 };
 
 int Server::GetMaxFd(){ return max_fd; };
@@ -224,6 +316,21 @@ void Server::AddClient(Client newClient){
 	Clients.push_back(newClient);
 	// dodanie klienta do kanalu general
 }
+Client *Server::CheckUserExistance(Client c){
+	for (size_t i = 0; i < Clients.size(); i++){
+		if (c.get_fd() == Clients[i].get_fd())
+			return &Clients[i];
+	}
+	return NULL;
+}
+Client *Server::CheckUserExistance2(std::string s){
+	for (size_t i = 0; i < Clients.size(); i++){
+		if (!Clients[i].get_nick().compare(s))
+			return &Clients[i];
+	}
+	return NULL;
+}
+
 
 void Server::VerifyCredentials(Client &client){
 	if (client.get_pass() == pass && !client.get_nick().empty()){
@@ -267,9 +374,9 @@ int Server::CheckInput(const std::vector<char> buffer, int n, Client &client)
 		return 1;
 	}
     if (buf.substr(0, 4) == "PASS")
-        Commands::PASS(client, buf.substr(5));
+        passwd(client, command_split(trimCRLF(buf)));
     else if (buf.substr(0, 4) == "NICK")
-        Commands::NICK(client, buf.substr(5));
+        nick(client, command_split(trimCRLF(buf)));
     else if (buf.compare(0, 4, "USER") == 0)
     {
         // USER bart 0 * :Bartosz\r\n
@@ -285,11 +392,14 @@ int Server::CheckInput(const std::vector<char> buffer, int n, Client &client)
             }
         }
     }
+	else if (buf.compare(0, 4, "MODE") == 0)
+		ModeHandler(command_split_mode(trimCRLF(buf)));
 	else if (buf.compare(0, 4, "JOIN") == 0)
-		JoinHandler(buf, client);
-	else if (buf.compare(0, 7, "PRIVMSG") == 0){
-		Brodcast(&buf, buf.size(), client);
-	}
+		JoinHandler(command_split(trimCRLF(buf)), client);
+	else if (buf.compare(0, 7, "PRIVMSG") == 0)
+		Brodcast(&buf, command_split(trimCRLF(buf)), buf.size(), client);
+	else if (buf.compare(0, 4, "KICK") == 0)
+		KickHandler(client, command_split(trimCRLF(buf)));
 
     // 🔑 AUTORYZACJA IRC (PO KAŻDEJ KOMENDZIE)
     if (!client.get_authenticated()
@@ -297,7 +407,7 @@ int Server::CheckInput(const std::vector<char> buffer, int n, Client &client)
         && !client.get_nick().empty()
         && client.hasUser())
     {
-		Commands::VERIFY(*this, client);
+		verify(*this, client);
         if(client.get_authenticated() == true){
 
         std::string welcome =
@@ -309,22 +419,31 @@ int Server::CheckInput(const std::vector<char> buffer, int n, Client &client)
     }
     return 1;
 }
-void Server::JoinHandler(const std::string& buf, Client& client) {
+void Server::JoinHandler(const std::vector<std::string>& buf, Client& client) {
 	// rozbic to na funckje
-	size_t pos = buf.find(' ');
-	if (pos == std::string::npos)
+	if (buf.size() <= 1 || buf.size() >= 4)
 		return ;
 
-	std::string tmp = buf.substr(pos + 1); 
-	std::string channel_name = trimCRLF(tmp);
+	std::string channel_name = buf[1];
 	if (channel_name.empty() || channel_name[0] != '#')
 		return ;
 	
 	if (channels.find(channel_name) != channels.end()){
-		channels[channel_name].add_user_to_channel(client);
-		std::cout << "client: " << client.get_nick() << " added to existing channel" << std::endl;}
-	else
-	{
+
+		if (!channels[channel_name].get_keypassword().empty() && buf.size() == 3){
+			if (buf[2] == channels[channel_name].get_keypassword()){
+				channels[channel_name].add_user_to_channel(client);
+			}
+			else{
+				std::cout << "client: " << client.get_nick() << " tried to enter channel with no/wrong password";
+				return ;
+			}
+		}
+		else
+			channels[channel_name].add_user_to_channel(client);
+		std::cout << "client: " << client.get_nick() << " added to existing channel" << std::endl;
+	}
+	else{
 		Channel new_channel;
 		new_channel.set_channel_name(channel_name);
 		new_channel.add_user_to_channel(client);
@@ -334,4 +453,12 @@ void Server::JoinHandler(const std::string& buf, Client& client) {
 	}
 	std::string msg = ":" + client.get_nick() + " JOIN " + channel_name + "\r\n";
 	send(client.get_fd(), msg.c_str(), msg.size(), 0);
+}
+
+void Server::ModeHandler(std::vector<ModeSplit> res){
+	// tutej rob mody
+	print_splitted_mode(res);
+	if(res.size() < 3)
+		return ;
+	
 }

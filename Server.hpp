@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Server.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: bkaleta <bkaleta@student.42warsaw.pl>      +#+  +:+       +#+        */
+/*   By: dtoszek <dtoszek@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/29 21:45:06 by bkaleta           #+#    #+#             */
-/*   Updated: 2026/01/29 21:45:36 by bkaleta          ###   ########.fr       */
+/*   Updated: 2026/02/02 14:30:22 by dtoszek          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -82,17 +82,24 @@ class Server{
 		std::string GetPass();
 		void DecrementNumClients();
 		void AddClient(Client newClient);
+		Client *CheckUserExistance(Client c);
+		Client *CheckUserExistance2(std::string s);
 		void SetClientRead();
 		void AcceptClient();
 		void ClientHandle();
-		void Brodcast(const std::string *msg, int len, Client &sender);
+		void Brodcast(const std::string *msg, std::vector<std::string> strr, int len, Client &sender);
 		void VerifyCredentials(Client &client);
 		int CheckInput(const std::vector<char> buffer, int n, Client &client);
-		void JoinHandler(const std::string& buf, Client& client);
+		void JoinHandler(const std::vector<std::string>& buf, Client& client);
+		void ModeHandler(std::vector<ModeSplit> res);
+		void KickHandler(Client &client, const std::vector<std::string> &kick); 
 		std::vector<std::string> inputHandler();
 };
 
 int set_nonblocking(int fd);
 std::vector<std::string> command_split(std::string buf, int option);
-std::vector<ModeSplit> command_split_moode(std::string buf);
+std::vector<ModeSplit> command_split_mode(std::string buf);
 int check_command(std::string buf);
+void print_splitted_mode(std::vector<ModeSplit> res);
+void passwd(Client &client, const std::vector<std::string> &pass);
+void nick(Client &client, const std::vector<std::string> &nick);

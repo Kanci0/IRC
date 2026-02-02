@@ -27,6 +27,7 @@ class Channel {
 		std::string get_keypassword();
 		int				get_users_limit();
 		bool		 is_channel_operator(Client);
+		bool		 is_channel_user(Client);
 	private:
 		std::string 						channel_name;
 		std::string							topic;

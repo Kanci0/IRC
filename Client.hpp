@@ -27,6 +27,7 @@ class Client{
 		bool get_authenticated();
 		int get_len();
 		std::string get_nick();
+		std::string get_user();
 		std::string get_pass();
 		int get_fd();
 		void appendToBuffer(const char* data, size_t len);

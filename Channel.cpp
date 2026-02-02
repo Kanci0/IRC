@@ -65,3 +65,10 @@ int Channel::get_users_limit() {
 bool Channel::is_channel_operator(Client channel_operator) {
 	return (channel_operators.find(channel_operator.get_fd()) != channel_operators.end());
 }
+
+bool Channel::is_channel_user(Client channel_user){
+	std::map<int, Client>::iterator it = users.find(channel_user.get_fd());
+	if(it != users.end())
+		return true;
+	return false;
+}
