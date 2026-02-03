@@ -93,6 +93,8 @@ class Server{
 		void JoinHandler(const std::vector<std::string>& buf, Client& client);
 		void ModeHandler(std::vector<ModeSplit> res);
 		void KickHandler(Client &client, const std::vector<std::string> &kick); 
+		void InviteHandler(Client &client, const std::vector<std::string> &invite);
+		void TopicHandler(Client &client, const std::vector<std::string> &topic);
 		std::vector<std::string> inputHandler();
 };
 

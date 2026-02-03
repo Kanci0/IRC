@@ -53,6 +53,65 @@ void verify(Server &server, Client &client) {
     }
 };
 
+void Server::InviteHandler(Client &client, const std::vector<std::string> &invite){
+	if (invite.size() != 3)
+		return ;
+	if (channels.find(invite[2]) != channels.end()){
+		if(channels[invite[2]].is_channel_user(client)){
+			Client *target = CheckUserExistance2(invite[1]);
+			if (target == NULL)
+				return ;
+			channels[invite[2]].add_user_to_channel(*target);
+			std::string msg = ":localhost 341 " + client.get_nick() + " " + invite[2] + " " + invite[1] + "\r\n";
+			send(target->get_fd(), msg.c_str(), msg.size(), 0);
+		}
+	}
+	
+};
+
+std::string assign_topic(std::vector<std::string> s){
+	s[2] = s[2].substr(1);
+	std::string str;
+	for (size_t i = 2; i < s.size(); i++){
+		str += s[i];
+	}
+	return str;
+}
+
+void Server::TopicHandler(Client &client, const std::vector<std::string> &topic){
+	if (topic.size() == 2){
+		if (channels.find(topic[1]) != channels.end()){
+			std::cout << "i went to topic size 2";
+			if (channels[topic[1]].is_channel_user(client) && !channels[topic[1]].get_topic().empty()){
+				std::string msg = ":localhost 332 " + client.get_nick() + " " + topic[1] + " :" + channels[topic[1]].get_topic() + "\r\n"; 
+				std::cout << msg;
+				send(client.get_fd(), msg.c_str(), msg.size(), 0);
+			}
+			else if (channels[topic[1]].is_channel_user(client)){
+				std::string msg = ":localhost 331 " + client.get_nick() + " " + topic[1] + " :No topic is set\r\n";
+				std::cout << msg;
+				send(client.get_fd(), msg.c_str(), msg.size(), 0);
+			}
+		}
+	}
+	else if (topic.size() >= 3){
+		if (channels.find(topic[1]) != channels.end()){
+			std::cout << "i went to topic size 3 or more";
+			if (channels[topic[1]].is_channel_user(client)){
+				std::string msg = client.get_nick() + "!" + client.get_user() + "@localhost" + topic[0] + " " + topic[1] + " ";
+				for (size_t i = 2; i < topic.size(); i++){
+					if (i > 2) msg += " ";
+					if (i == 2)
+					msg += topic[i];
+				}
+				msg += "\r\n";
+				send(client.get_fd(), msg.c_str(), msg.size(), 0);
+				channels[topic[1]].set_topic(assign_topic(topic));
+			}
+		}
+	}
+};
+
 void Server::KickHandler(Client &client, const std::vector<std::string> &kick){
 	if (kick.size() <= 2 && kick.size() >= 5)
 		return ;
@@ -73,7 +132,6 @@ void Server::KickHandler(Client &client, const std::vector<std::string> &kick){
 				std::cout << msg;
 				channels[channel_name].remove_user_from_channel(*target);
 				send(target->get_fd(), msg.c_str(), msg.size(), 0);
-				
 			}
 		}
 	}
@@ -351,13 +409,6 @@ void Server::VerifyCredentials(Client &client){
 			}
 		}	
 		client.set_authenticated(true);
-		std::string tmp = ":server 001 " + client.get_nick() + " :Welcome to the Internet Relay Network\r\n";
-        const char* msg = tmp.c_str();
-        int n = send(client.get_fd(), msg, strlen(msg), 0);
-		if (n < 0){
-			perror("send error");
-			return;
-		}
 	}
 };
 
@@ -392,6 +443,8 @@ int Server::CheckInput(const std::vector<char> buffer, int n, Client &client)
             }
         }
     }
+	else if (buf.compare(0, 6, "INVITE") == 0)
+		InviteHandler(client, command_split(trimCRLF(buf)));
 	else if (buf.compare(0, 4, "MODE") == 0)
 		ModeHandler(command_split_mode(trimCRLF(buf)));
 	else if (buf.compare(0, 4, "JOIN") == 0)
@@ -400,6 +453,8 @@ int Server::CheckInput(const std::vector<char> buffer, int n, Client &client)
 		Brodcast(&buf, command_split(trimCRLF(buf)), buf.size(), client);
 	else if (buf.compare(0, 4, "KICK") == 0)
 		KickHandler(client, command_split(trimCRLF(buf)));
+	else if (buf.compare(0, 5, "TOPIC") == 0)
+		TopicHandler(client, command_split(trimCRLF(buf)));
 
     // 🔑 AUTORYZACJA IRC (PO KAŻDEJ KOMENDZIE)
     if (!client.get_authenticated()
@@ -412,7 +467,7 @@ int Server::CheckInput(const std::vector<char> buffer, int n, Client &client)
 
         std::string welcome =
             ":ircserv 001 " + client.get_nick() +
-            " :Welcome to the Internet Relay Network\r\n";
+            " :Welcome to the Internet Relay Network " + client.get_nick() + "\r\n";
 
         send(client.get_fd(), welcome.c_str(), welcome.size(), 0);
 		}
