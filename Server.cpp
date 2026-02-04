@@ -42,28 +42,21 @@ void verify(Server &server, Client &client) {
 		}
         return;
     }
-    if (client.get_pass() == server.GetPass() && !client.get_nick().empty()) {
-        std::string tmp = "Client " + client.get_nick() + " starting auth\r\n";
-        int n = send(client.get_fd(), tmp.c_str(), tmp.size(), 0);
-        if (n < 0){
-			perror("send error");
-			return;
-		}
+    if (client.get_pass() == server.GetPass() && !client.get_nick().empty()) 
         server.VerifyCredentials(client);
-    }
 };
 
 void Server::InviteHandler(Client &client, const std::vector<std::string> &invite){
 	if (invite.size() != 3)
 		return ;
 	if (channels.find(invite[2]) != channels.end()){
-		if(channels[invite[2]].is_channel_user(client)){
+		if(channels[invite[2]].is_channel_operator(client)){
 			Client *target = CheckUserExistance2(invite[1]);
 			if (target == NULL)
 				return ;
 			channels[invite[2]].add_user_to_channel(*target);
 			std::string msg = ":localhost 341 " + client.get_nick() + " " + invite[2] + " " + invite[1] + "\r\n";
-			send(target->get_fd(), msg.c_str(), msg.size(), 0);
+			send(target->get_fd(), msg.c_str(), msg.size(), 0); 
 		}
 	}
 	
@@ -74,31 +67,36 @@ std::string assign_topic(std::vector<std::string> s){
 	std::string str;
 	for (size_t i = 2; i < s.size(); i++){
 		str += s[i];
+		if (i + 1 != s.size())
+			str += " ";
 	}
 	return str;
 }
 
 void Server::TopicHandler(Client &client, const std::vector<std::string> &topic){
+	//Wysyła Topic
+	std::string channel_name = topic[1];
 	if (topic.size() == 2){
-		if (channels.find(topic[1]) != channels.end()){
+		if (channels.find(channel_name) != channels.end()){
 			std::cout << "i went to topic size 2";
-			if (channels[topic[1]].is_channel_user(client) && !channels[topic[1]].get_topic().empty()){
-				std::string msg = ":localhost 332 " + client.get_nick() + " " + topic[1] + " :" + channels[topic[1]].get_topic() + "\r\n"; 
+			if (channels[channel_name].is_channel_user(client) && !channels[channel_name].get_topic().empty()){
+				std::string msg = ":localhost 332 " + client.get_nick() + " " + channel_name + " :" + channels[channel_name].get_topic() + "\r\n"; 
 				std::cout << msg;
 				send(client.get_fd(), msg.c_str(), msg.size(), 0);
 			}
-			else if (channels[topic[1]].is_channel_user(client)){
-				std::string msg = ":localhost 331 " + client.get_nick() + " " + topic[1] + " :No topic is set\r\n";
+			else if (channels[channel_name].is_channel_user(client)){
+				std::string msg = ":localhost 331 " + client.get_nick() + " " + channel_name + " :No topic is set\r\n";
 				std::cout << msg;
 				send(client.get_fd(), msg.c_str(), msg.size(), 0);
 			}
 		}
 	}
+	// Ustawia Topic
 	else if (topic.size() >= 3){
-		if (channels.find(topic[1]) != channels.end()){
+		if (channels.find(channel_name) != channels.end()){
 			std::cout << "i went to topic size 3 or more";
-			if (channels[topic[1]].is_channel_user(client)){
-				std::string msg = client.get_nick() + "!" + client.get_user() + "@localhost" + topic[0] + " " + topic[1] + " ";
+			if (channels[channel_name].is_channel_operator(client)){
+				std::string msg = client.get_nick() + "!" + client.get_user() + "@localhost" + topic[0] + " " + channel_name + " ";
 				for (size_t i = 2; i < topic.size(); i++){
 					if (i > 2) msg += " ";
 					if (i == 2)
@@ -106,7 +104,7 @@ void Server::TopicHandler(Client &client, const std::vector<std::string> &topic)
 				}
 				msg += "\r\n";
 				send(client.get_fd(), msg.c_str(), msg.size(), 0);
-				channels[topic[1]].set_topic(assign_topic(topic));
+				channels[channel_name].set_topic(assign_topic(topic));
 			}
 		}
 	}
@@ -324,8 +322,6 @@ void Server::AcceptClient(){
 			tmp->set_fd(new_sock);
 			num_clients++;
 			AddClient(*tmp);
-			const char *msg = "client connected to chat to connect to channel you need to fill credentials use commands pass - for password/ nick - for nickname\r\n";
-			send(new_sock, msg,strlen(msg), 0);
 		}
 };
 
@@ -400,7 +396,7 @@ void Server::VerifyCredentials(Client &client){
 				continue;
 			}
 			else{
-				const char *msg = "Nickname or password already in use\r\n";
+				const char *msg = "Nickname already in use or invalid password\r\n";
 				int n = send(client.get_fd(), msg, strlen(msg), 0);
 				if (n < 0){
 					perror("send error");
