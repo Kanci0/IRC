@@ -507,9 +507,18 @@ void Server::JoinHandler(const std::vector<std::string>& buf, Client& client) {
 }
 
 void Server::ModeHandler(std::vector<ModeSplit> res){
-	// tutej rob mody
-	print_splitted_mode(res);
-	if(res.size() < 3)
+	if (res.size() < 2)
 		return ;
 	
+	if (res[1].value.empty() || res[1].value[0] != '#')
+		return ;
+	print_splitted_mode(res);
+	for (size_t i = 0; i < res.size(); i++)
+		std::cout << "MOJ TEST VALUE\n" << i << ". " << res[i].value << "\n" << std::endl;
+	for (size_t i = 0; i < res.size(); i++)
+		std::cout << "MOJ TEST NODE\n" << i << ". " << res[i].node << "\n" << std::endl;
+
+	if(res.size() < 3)
+		return ;
+	// tutej rob mody
 }
