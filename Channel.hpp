@@ -5,6 +5,8 @@
 #include <map>
 #include <set>
 #include "Client.hpp"
+#include "Server.hpp"
+#include "ModeSplit.hpp"
 
 
 class Channel {
@@ -20,6 +22,8 @@ class Channel {
 		void	remove_user_from_channel(Client);
 		void	add_channel_operator(Client);
 		void	remove_channel_operator(Client);
+		void	loadMode(Client);
+		void	changeMode(std::vector<ModeSplit>, Client);
 
 		std::string get_channel_name();
 		std::string get_topic();

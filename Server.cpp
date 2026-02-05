@@ -442,7 +442,7 @@ int Server::CheckInput(const std::vector<char> buffer, int n, Client &client)
 	else if (buf.compare(0, 6, "INVITE") == 0)
 		InviteHandler(client, command_split(trimCRLF(buf)));
 	else if (buf.compare(0, 4, "MODE") == 0)
-		ModeHandler(command_split_mode(trimCRLF(buf)));
+		ModeHandler(command_split_mode(trimCRLF(buf)), client);
 	else if (buf.compare(0, 4, "JOIN") == 0)
 		JoinHandler(command_split(trimCRLF(buf)), client);
 	else if (buf.compare(0, 7, "PRIVMSG") == 0)
@@ -506,19 +506,30 @@ void Server::JoinHandler(const std::vector<std::string>& buf, Client& client) {
 	send(client.get_fd(), msg.c_str(), msg.size(), 0);
 }
 
-void Server::ModeHandler(std::vector<ModeSplit> res){
+void Server::ModeHandler(const std::vector<ModeSplit> &res, Client& client){
 	if (res.size() < 2)
 		return ;
 	
 	if (res[1].value.empty() || res[1].value[0] != '#')
 		return ;
+
+	const std::string& channel_name = res[1].value;
+	std::map<std::string, Channel>::iterator it = channels.find(channel_name);
+    if (it == channels.end())
+        return;
+
+    Channel& channel = it->second;
+
+	//  ------------------------------- DEBUG ---------------------------------------------------
 	print_splitted_mode(res);
 	for (size_t i = 0; i < res.size(); i++)
 		std::cout << "MOJ TEST VALUE\n" << i << ". " << res[i].value << "\n" << std::endl;
 	for (size_t i = 0; i < res.size(); i++)
 		std::cout << "MOJ TEST NODE\n" << i << ". " << res[i].node << "\n" << std::endl;
+	//  ------------------------------- DEBUG ---------------------------------------------------
 
-	if(res.size() < 3)
-		return ;
-	// tutej rob mody
+	if (res.size() == 2)
+		channel.loadMode(client);
+	// else if (res.size() >= 3)
+	// 	channel.changeMode(res, client);
 }

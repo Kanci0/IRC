@@ -42,6 +42,26 @@ void Channel::remove_channel_operator(Client channel_operator_to_remove) {
 	channel_operators.erase(channel_operator_to_remove.get_fd());
 }
 
+void	Channel::loadMode(Client client)
+{
+	std::string mode_str = "+";
+	for (std::set<char>::iterator it = modes.begin(); it != modes.end(); ++it)
+        mode_str += *it;
+
+	std::string reply =
+        ":ircserv 324 " +
+        client.get_nick() + " " +
+        channel_name + " " +
+        mode_str + "\r\n";
+
+    send(client.get_fd(), reply.c_str(), reply.size(), 0);
+}
+void	Channel::changeMode(std::vector<ModeSplit> res, Client client)
+{
+	(void)res;
+	(void)client;
+}
+
 std::string Channel::get_channel_name() {
 	return (channel_name);
 }

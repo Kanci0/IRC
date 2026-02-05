@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Server.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: dtoszek <dtoszek@student.42.fr>            +#+  +:+       +#+        */
+/*   By: bkaleta <bkaleta@student.42warsaw.pl>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/29 21:45:06 by bkaleta           #+#    #+#             */
-/*   Updated: 2026/02/02 14:30:22 by dtoszek          ###   ########.fr       */
+/*   Updated: 2026/02/05 22:45:31 by bkaleta          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,6 +27,7 @@
 #include "Client.hpp"
 #include "Commands.hpp"
 #include "Channel.hpp"
+#include "ModeSplit.hpp"
 #include <map>
 #define MAX_CLIENTS 10
 
@@ -54,11 +55,11 @@ enum ModeNode{
 	M_ERROR = 666
 };
 
-struct ModeSplit{
-	std::string value;
-	std::string node;
-	int node_number;
-};
+// struct ModeSplit{
+// 	std::string value;
+// 	std::string node;
+// 	int node_number;
+// };
 
 class Server{
 	private:
@@ -91,7 +92,7 @@ class Server{
 		void VerifyCredentials(Client &client);
 		int CheckInput(const std::vector<char> buffer, int n, Client &client);
 		void JoinHandler(const std::vector<std::string>& buf, Client& client);
-		void ModeHandler(std::vector<ModeSplit> res);
+		void ModeHandler(const std::vector<ModeSplit> &res, Client& client);
 		void KickHandler(Client &client, const std::vector<std::string> &kick); 
 		void InviteHandler(Client &client, const std::vector<std::string> &invite);
 		void TopicHandler(Client &client, const std::vector<std::string> &topic);
