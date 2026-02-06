@@ -56,10 +56,53 @@ void	Channel::loadMode(Client client)
 
     send(client.get_fd(), reply.c_str(), reply.size(), 0);
 }
-void	Channel::changeMode(std::vector<ModeSplit> res, Client client)
+void	Channel::changeMode(const std::vector<ModeSplit> &res, Client &client)
 {
-	(void)res;
-	(void)client;
+	if (!is_channel_operator(client))
+		return ;
+
+		// +i
+	if (res.size() == 4 && res[2].value == "+" && res[3].value == "i")
+	{
+		modes.insert('i');
+		return;
+	}
+		// +t
+	if (res.size() == 4 && res[2].value == "+" && res[3].value == "t")
+	{
+		modes.insert('t');
+		return;
+	}
+
+	// +o
+	if (res.size() < 5 || res[2].value != "+" || res[3].value != "o")
+		return;
+
+
+	// nick, któremu chcemy nadać +o
+	const std::string& user_to_adjust = res[4].value;
+
+	// iterator na userów kanału
+	std::map<int, Client>::iterator it = users.begin();
+	std::map<int, Client>::iterator target_it = users.end();
+
+	// szukamy usera po nicku
+	for (; it != users.end(); ++it)
+	{
+		if (it->second.get_nick() == user_to_adjust)
+		{
+			target_it = it;
+			break;
+		}
+	}
+	// jeśli NIE znaleźliśmy usera w kanale → STOP
+	if (target_it == users.end())
+		return;
+	std::cout << "ZNALEZIONO USERA: " << target_it->second.get_nick() << std::endl;
+	
+	int target_fd = target_it->first;
+	channel_operators.insert(target_fd);
+	modes.insert('o');
 }
 
 std::string Channel::get_channel_name() {
@@ -95,4 +138,24 @@ bool Channel::is_channel_user(Client channel_user){
 	if(it != users.end())
 		return true;
 	return false;
+}
+
+void Channel::invite(int fd)
+{
+    invited_users.insert(fd);
+}
+
+bool Channel::is_invited(int fd) const
+{
+    return invited_users.find(fd) != invited_users.end();
+}
+
+void Channel::remove_invite(int fd)
+{
+    invited_users.erase(fd);
+}
+
+const std::set<char>& Channel::get_modes_debug() const
+{
+	return (modes);
 }

@@ -23,7 +23,13 @@ class Channel {
 		void	add_channel_operator(Client);
 		void	remove_channel_operator(Client);
 		void	loadMode(Client);
-		void	changeMode(std::vector<ModeSplit>, Client);
+		void	changeMode(const std::vector<ModeSplit> &, Client &);
+		void 	invite(int fd);
+		bool 	is_invited(int fd) const;
+		void 	remove_invite(int fd);
+		public:
+   		const std::set<char>& get_modes_debug() const;
+
 
 		std::string get_channel_name();
 		std::string get_topic();
@@ -41,4 +47,5 @@ class Channel {
 		int 									users_limit;
 		std::map<int, Client>	 	users;
 		std::set<int> 					channel_operators;
+		std::set<int> 					invited_users;
 }; 
