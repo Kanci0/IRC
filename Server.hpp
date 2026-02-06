@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Server.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: bkaleta <bkaleta@student.42warsaw.pl>      +#+  +:+       +#+        */
+/*   By: dtoszek <dtoszek@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/29 21:45:06 by bkaleta           #+#    #+#             */
-/*   Updated: 2026/02/05 22:45:31 by bkaleta          ###   ########.fr       */
+/*   Updated: 2026/02/06 10:54:57 by dtoszek          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -97,6 +97,10 @@ class Server{
 		void InviteHandler(Client &client, const std::vector<std::string> &invite);
 		void TopicHandler(Client &client, const std::vector<std::string> &topic);
 		std::vector<std::string> inputHandler();
+		void join(const std::vector<std::string>, Client&);
+		void add_topic(Client&, const std::vector<std::string>&);
+		void privmsg_server(std::string msg, std::string target, Client &sender);
+		void privmsg(std::string msg, std::string target);
 };
 
 int set_nonblocking(int fd);

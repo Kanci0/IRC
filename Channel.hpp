@@ -30,6 +30,7 @@ class Channel {
 		bool		 has_mode(char);
 		std::string get_keypassword();
 		int				get_users_limit();
+		int				get_users_size();
 		bool		 is_channel_operator(Client);
 		bool		 is_channel_user(Client);
 	private:

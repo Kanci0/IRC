@@ -78,6 +78,10 @@ std::string Channel::get_keypassword() {
 	return (key_password);
 }
 
+int	Channel::get_users_size(){
+	return (users.size());
+}
+
 int Channel::get_users_limit() {
 	return (users_limit);
 }
