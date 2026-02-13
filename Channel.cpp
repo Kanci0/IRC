@@ -42,68 +42,156 @@ void Channel::remove_channel_operator(Client channel_operator_to_remove) {
 	channel_operators.erase(channel_operator_to_remove.get_fd());
 }
 
-void	Channel::loadMode(Client client)
+void Channel::loadMode(Client client)
 {
-	std::string mode_str = "+";
-	for (std::set<char>::iterator it = modes.begin(); it != modes.end(); ++it)
-        mode_str += *it;
+    std::string mode_str = "+";
+    std::string params = "";
 
-	std::string reply =
+    for (std::set<char>::iterator it = modes.begin(); it != modes.end(); ++it)
+    {
+        mode_str += *it;
+        if (*it == 'l')
+        {
+            params += " ";
+            std::stringstream ss;
+			ss << users_limit;
+			params += ss.str();
+        }
+    }
+
+    std::string reply =
         ":ircserv 324 " +
         client.get_nick() + " " +
         channel_name + " " +
-        mode_str + "\r\n";
+        mode_str +
+        params +
+        "\r\n";
 
     send(client.get_fd(), reply.c_str(), reply.size(), 0);
 }
+
 void	Channel::changeMode(const std::vector<ModeSplit> &res, Client &client)
 {
 	if (!is_channel_operator(client))
 		return ;
 
-		// +i
-	if (res.size() == 4 && res[2].value == "+" && res[3].value == "i")
-	{
+	if (res.size() < 4)
+		return ;
+
+	if (res[2].value == "+")
+        handleAddMode(res);
+    else if (res[2].value == "-")
+        handleRemoveMode(res);
+}
+
+void	Channel::handleAddMode(const std::vector<ModeSplit>& res)
+{
+	const std::string &flag = res[3].value;
+	if (flag == "i") {
 		modes.insert('i');
 		return;
 	}
-		// +t
-	if (res.size() == 4 && res[2].value == "+" && res[3].value == "t")
-	{
+	else if (flag == "t") {
 		modes.insert('t');
 		return;
 	}
+	else if (flag == "k") {
+		if (res.size() < 5)
+			return ;
+		
+		const std::string& password = res[4].value;
+		if (password.empty())
+			return;
 
-	// +o
-	if (res.size() < 5 || res[2].value != "+" || res[3].value != "o")
+		key_password = password;
+		modes.insert('k');
 		return;
-
-
-	// nick, któremu chcemy nadać +o
-	const std::string& user_to_adjust = res[4].value;
-
-	// iterator na userów kanału
-	std::map<int, Client>::iterator it = users.begin();
-	std::map<int, Client>::iterator target_it = users.end();
-
-	// szukamy usera po nicku
-	for (; it != users.end(); ++it)
-	{
-		if (it->second.get_nick() == user_to_adjust)
-		{
-			target_it = it;
-			break;
-		}
 	}
-	// jeśli NIE znaleźliśmy usera w kanale → STOP
-	if (target_it == users.end())
+	else if (flag == "l")
+	{
+		if (res.size() < 5)
+			return;
+
+		const std::string& limit_str = res[4].value;
+
+		for (size_t i = 0; i < limit_str.size(); ++i)
+			if (!isdigit(limit_str[i]))
+				return;
+
+		int limit = atoi(limit_str.c_str());
+		if (limit <= 0)
+			return;
+
+		users_limit = limit;
+		modes.insert('l');
 		return;
-	std::cout << "ZNALEZIONO USERA: " << target_it->second.get_nick() << std::endl;
-	
-	int target_fd = target_it->first;
-	channel_operators.insert(target_fd);
-	modes.insert('o');
+	}
+	else if (flag ==  "o")
+	{
+		if (res.size() < 5)
+			return;
+
+		const std::string& user_to_adjust = res[4].value;
+		std::map<int, Client>::iterator it = users.begin();
+		for (; it != users.end(); ++it)
+		{
+			if (it->second.get_nick() == user_to_adjust)
+			{
+				channel_operators.insert(it->first);
+				return;
+			}
+		}
+	}	
 }
+
+void Channel::handleRemoveMode(const std::vector<ModeSplit>& res)
+{
+    if (res.size() < 4)
+        return;
+
+    const std::string& flag = res[3].value;
+
+    if (flag == "i")
+    {
+        modes.erase('i');
+        return;
+    }
+    else if (flag == "t")
+    {
+        modes.erase('t');
+        return;
+    }
+    else if (flag == "k")
+    {
+        key_password.clear();
+        modes.erase('k');
+        return;
+    }
+    else if (flag == "l")
+    {
+        users_limit = 0;
+        modes.erase('l');
+        return;
+    }
+    else if (flag == "o")
+    {
+        if (res.size() < 5)
+            return;
+
+        const std::string& user_to_adjust = res[4].value;
+
+        std::map<int, Client>::iterator it = users.begin();
+        for (; it != users.end(); ++it)
+        {
+            if (it->second.get_nick() == user_to_adjust)
+            {
+                channel_operators.erase(it->first);
+                return;
+            }
+        }
+    }
+}
+
 
 std::string Channel::get_channel_name() {
 	return (channel_name);

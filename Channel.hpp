@@ -7,6 +7,7 @@
 #include "Client.hpp"
 #include "Server.hpp"
 #include "ModeSplit.hpp"
+#include <sstream>
 
 
 class Channel {
@@ -48,4 +49,6 @@ class Channel {
 		std::map<int, Client>	 	users;
 		std::set<int> 					channel_operators;
 		std::set<int> 					invited_users;
+		void handleAddMode(const std::vector<ModeSplit>& res);
+    	void handleRemoveMode(const std::vector<ModeSplit>& res);
 }; 

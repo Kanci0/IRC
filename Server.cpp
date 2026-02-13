@@ -567,24 +567,54 @@ int Server::CheckInput(const std::vector<char> buffer, int n, Client &client)
     return 1;
 }
 
-void Server::join(const std::vector<std::string> buf, Client& client){
-	std::string channel_name = buf[1];
-	if ((channels[channel_name].has_mode('l') == true) && channels[channel_name].get_users_size() >= channels[channel_name].get_users_limit())
-		return ;
-	if (channels[channel_name].has_mode('i') == true)
-		return ;
-	if (!channels[channel_name].get_keypassword().empty() && buf.size() == 3){
-			if (buf[2] == channels[channel_name].get_keypassword()){
-				channels[channel_name].add_user_to_channel(client);
-			}
-			else{
-				std::cout << "client: " << client.get_nick() << " tried to enter channel with no/wrong password";
-				return ;
-			}
-		}
-		else
-			channels[channel_name].add_user_to_channel(client);
-		std::cout << "client: " << client.get_nick() << " added to existing channel" << std::endl;
+bool Server::join(const std::vector<std::string> buf, Client& client)
+{
+    std::string channel_name = buf[1];
+    Channel &channel = channels[channel_name];
+
+    // ===== +l (limit users) =====
+    if (channel.has_mode('l') && 
+        channel.get_users_size() >= channel.get_users_limit())
+    {
+        std::string msg = ":localhost 471 " + client.get_nick() +
+                          " " + channel_name +
+                          " :Cannot join channel (+l)\r\n";
+        send(client.get_fd(), msg.c_str(), msg.size(), 0);
+        return false;
+    }
+
+    // ===== +k (channel key) =====
+    std::string key = channel.get_keypassword();
+
+    if (!key.empty())
+    {
+        // brak hasła
+        if (buf.size() < 3)
+        {
+            std::string msg = ":localhost 475 " + client.get_nick() +
+                              " " + channel_name +
+                              " :Cannot join channel (+k)\r\n";
+            send(client.get_fd(), msg.c_str(), msg.size(), 0);
+            return false;
+        }
+
+        // złe hasło
+        if (buf[2] != key)
+        {
+            std::string msg = ":localhost 475 " + client.get_nick() +
+                              " " + channel_name +
+                              " :Cannot join channel (+k)\r\n";
+            send(client.get_fd(), msg.c_str(), msg.size(), 0);
+            return false;
+        }
+    }
+
+    // ===== OK → dodaj do kanału =====
+    channel.add_user_to_channel(client);
+
+    std::cout << "client: " << client.get_nick()
+              << " added to existing channel" << std::endl;
+	return true;
 }
 
 void Server::JoinHandler(const std::vector<std::string>& buf, Client& client)
@@ -627,10 +657,11 @@ void Server::JoinHandler(const std::vector<std::string>& buf, Client& client)
     }
 
     // 4️⃣ normalny JOIN
-    join(buf, client);
-
-    std::string msg = ":" + client.get_nick() + " JOIN " + channel_name + "\r\n";
-    send(client.get_fd(), msg.c_str(), msg.size(), 0);
+    if(join(buf, client))
+	{
+		std::string msg = ":" + client.get_nick() + " JOIN " + channel_name + "\r\n";
+		send(client.get_fd(), msg.c_str(), msg.size(), 0);
+	}
 }
 
 void Server::ModeHandler(const std::vector<ModeSplit> &res, Client& client){
