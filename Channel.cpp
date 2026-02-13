@@ -47,16 +47,23 @@ void Channel::loadMode(Client client)
     std::string mode_str = "+";
     std::string params = "";
 
-    for (std::set<char>::iterator it = modes.begin(); it != modes.end(); ++it)
+    if (has_mode('i'))
+        mode_str += "i";
+
+    if (has_mode('t'))
+        mode_str += "t";
+
+    if (has_mode('k'))
+        mode_str += "k";
+
+    if (has_mode('l'))
     {
-        mode_str += *it;
-        if (*it == 'l')
-        {
-            params += " ";
-            std::stringstream ss;
-			ss << users_limit;
-			params += ss.str();
-        }
+        mode_str += "l";
+
+        std::stringstream ss;
+        ss << users_limit;
+        params += " ";
+        params += ss.str();
     }
 
     std::string reply =
@@ -70,123 +77,143 @@ void Channel::loadMode(Client client)
     send(client.get_fd(), reply.c_str(), reply.size(), 0);
 }
 
-void	Channel::changeMode(const std::vector<ModeSplit> &res, Client &client)
+void Channel::changeMode(const std::vector<ModeSplit>& res, Client& client)
 {
-	if (!is_channel_operator(client))
-		return ;
-
-	if (res.size() < 4)
-		return ;
-
-	if (res[2].value == "+")
-        handleAddMode(res);
-    else if (res[2].value == "-")
-        handleRemoveMode(res);
-}
-
-void	Channel::handleAddMode(const std::vector<ModeSplit>& res)
-{
-	const std::string &flag = res[3].value;
-	if (flag == "i") {
-		modes.insert('i');
-		return;
-	}
-	else if (flag == "t") {
-		modes.insert('t');
-		return;
-	}
-	else if (flag == "k") {
-		if (res.size() < 5)
-			return ;
-		
-		const std::string& password = res[4].value;
-		if (password.empty())
-			return;
-
-		key_password = password;
-		modes.insert('k');
-		return;
-	}
-	else if (flag == "l")
-	{
-		if (res.size() < 5)
-			return;
-
-		const std::string& limit_str = res[4].value;
-
-		for (size_t i = 0; i < limit_str.size(); ++i)
-			if (!isdigit(limit_str[i]))
-				return;
-
-		int limit = atoi(limit_str.c_str());
-		if (limit <= 0)
-			return;
-
-		users_limit = limit;
-		modes.insert('l');
-		return;
-	}
-	else if (flag ==  "o")
-	{
-		if (res.size() < 5)
-			return;
-
-		const std::string& user_to_adjust = res[4].value;
-		std::map<int, Client>::iterator it = users.begin();
-		for (; it != users.end(); ++it)
-		{
-			if (it->second.get_nick() == user_to_adjust)
-			{
-				channel_operators.insert(it->first);
-				return;
-			}
-		}
-	}	
-}
-
-void Channel::handleRemoveMode(const std::vector<ModeSplit>& res)
-{
-    if (res.size() < 4)
+    if (!is_channel_operator(client))
         return;
 
-    const std::string& flag = res[3].value;
+    bool adding = true;
+    size_t param_index = 0;
 
-    if (flag == "i")
+    for (size_t i = 2; i < res.size(); ++i)
     {
-        modes.erase('i');
-        return;
-    }
-    else if (flag == "t")
-    {
-        modes.erase('t');
-        return;
-    }
-    else if (flag == "k")
-    {
-        key_password.clear();
-        modes.erase('k');
-        return;
-    }
-    else if (flag == "l")
-    {
-        users_limit = 0;
-        modes.erase('l');
-        return;
-    }
-    else if (flag == "o")
-    {
-        if (res.size() < 5)
-            return;
-
-        const std::string& user_to_adjust = res[4].value;
-
-        std::map<int, Client>::iterator it = users.begin();
-        for (; it != users.end(); ++it)
+        if (res[i].value.size() != 1)
         {
-            if (it->second.get_nick() == user_to_adjust)
+            param_index = i;
+            break;
+        }
+    }
+
+    for (size_t i = 2; i < res.size(); ++i)
+    {
+        const std::string& token = res[i].value;
+
+        if (token == "+")
+        {
+            adding = true;
+            continue;
+        }
+
+        if (token == "-")
+        {
+            adding = false;
+            continue;
+        }
+
+        if (token.size() != 1)
+            continue;
+
+        char flag = token[0];
+
+        if (flag == 'i')
+        {
+            if (adding)
             {
-                channel_operators.erase(it->first);
+                modes.insert('i');
+                broadcastMode("+i", client);
+            }
+            else
+            {
+                modes.erase('i');
+                broadcastMode("-i", client);
+            }
+        }
+
+        else if (flag == 't')
+        {
+            if (adding)
+            {
+                modes.insert('t');
+                broadcastMode("+t", client);
+            }
+            else
+            {
+                modes.erase('t');
+                broadcastMode("-t", client);
+            }
+        }
+
+        else if (flag == 'k')
+        {
+            if (adding)
+            {
+                if (param_index >= res.size())
+                    return;
+
+                std::string password = res[param_index++].value;
+                key_password = password;
+                modes.insert('k');
+
+                broadcastMode("+k " + password, client);
+            }
+            else
+            {
+                key_password.clear();
+                modes.erase('k');
+                broadcastMode("-k", client);
+            }
+        }
+
+        else if (flag == 'l')
+        {
+            if (adding)
+            {
+                if (param_index >= res.size())
+                    return;
+
+                std::string limit_str = res[param_index++].value;
+
+                for (size_t j = 0; j < limit_str.size(); ++j)
+                    if (!isdigit(limit_str[j]))
+                        return;
+
+                users_limit = atoi(limit_str.c_str());
+                modes.insert('l');
+
+                broadcastMode("+l " + limit_str, client);
+            }
+            else
+            {
+                users_limit = 0;
+                modes.erase('l');
+                broadcastMode("-l", client);
+            }
+        }
+
+        else if (flag == 'o')
+        {
+            if (param_index >= res.size())
                 return;
+
+            std::string nick = res[param_index++].value;
+
+            std::map<int, Client>::iterator it = users.begin();
+            for (; it != users.end(); ++it)
+            {
+                if (it->second.get_nick() == nick)
+                {
+                    if (adding)
+                    {
+                        channel_operators.insert(it->first);
+                        broadcastMode("+o " + nick, client);
+                    }
+                    else
+                    {
+                        channel_operators.erase(it->first);
+                        broadcastMode("-o " + nick, client);
+                    }
+                    break;
+                }
             }
         }
     }

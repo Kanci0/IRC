@@ -49,6 +49,5 @@ class Channel {
 		std::map<int, Client>	 	users;
 		std::set<int> 					channel_operators;
 		std::set<int> 					invited_users;
-		void handleAddMode(const std::vector<ModeSplit>& res);
-    	void handleRemoveMode(const std::vector<ModeSplit>& res);
+		void broadcastMode(const std::string& mode_change, Client& operator_client);
 }; 

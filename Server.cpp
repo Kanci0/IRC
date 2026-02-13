@@ -683,3 +683,20 @@ void Server::ModeHandler(const std::vector<ModeSplit> &res, Client& client){
 	else if (res.size() >= 3)
 		channel.changeMode(res, client);
 }
+
+void Channel::broadcastMode(const std::string& mode_change, Client& operator_client)
+{
+    std::string message =
+        ":" + operator_client.get_nick() +
+        "!" + operator_client.get_user() +
+        "@localhost MODE " +
+        channel_name + " " +
+        mode_change + "\r\n";
+
+    for (std::map<int, Client>::iterator it = users.begin();
+         it != users.end();
+         ++it)
+    {
+        send(it->first, message.c_str(), message.size(), 0);
+    }
+}
