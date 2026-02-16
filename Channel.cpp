@@ -31,7 +31,10 @@ void Channel::add_user_to_channel(Client new_client) {
 }
 
 void Channel::remove_user_from_channel(Client client_to_remove) {
-	users.erase(client_to_remove.get_fd());
+    int fd = client_to_remove.get_fd();
+
+    users.erase(fd);
+    channel_operators.erase(fd); 
 }
 
 void Channel::add_channel_operator(Client new_channel_operator) {
@@ -274,3 +277,18 @@ const std::set<char>& Channel::get_modes_debug() const
 {
 	return (modes);
 }
+
+std::map<int, Client>& Channel::get_users_map()
+{
+    return users;
+}
+
+void Channel::broadcastToChannel(const std::string& msg)
+{
+    for (std::map<int, Client>::iterator it = users.begin();
+         it != users.end(); ++it)
+    {
+        send(it->first, msg.c_str(), msg.size(), 0);
+    }
+}
+

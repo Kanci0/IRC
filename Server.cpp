@@ -151,33 +151,46 @@ void Server::TopicHandler(Client &client, const std::vector<std::string> &topic)
     add_topic(client, topic);
 }
 
-void Server::KickHandler(Client &client, const std::vector<std::string> &kick){
-	if (kick.size() <= 2 && kick.size() >= 5)
-		return ;
-	std::string mssg = "hello\r\n";
-	std::cout << mssg;
-	send(client.get_fd(), mssg.c_str(), mssg.size(), 0);
-	std::string channel_name = kick[1];
-	if (channel_name.empty() || channel_name[0] != '#')
-		return ;
-	
-	if (channels.find(channel_name) != channels.end()){
-		if (channels[channel_name].is_channel_operator(client)){
-			Client *target = CheckUserExistance2(kick[2]);
-			if (target == NULL)
-				return ;
-			if(channels[channel_name].is_channel_user(*target)){
-				std::string msg = ":" + client.get_nick() + "!" + client.get_user() + "@localhost" + " " + kick[0] + " " + kick[1] + " " + kick[2] +"\r\n";
-				std::cout << msg;
-				channels[channel_name].remove_user_from_channel(*target);
-				send(target->get_fd(), msg.c_str(), msg.size(), 0);
-			}
-		}
-	}
-	
+void Server::KickHandler(Client &client, const std::vector<std::string> &kick)
+{
+    if (kick.size() < 3)
+        return;
 
-}; 
+    std::string channel_name = kick[1];
 
+    if (channel_name.empty() || channel_name[0] != '#')
+        return;
+
+    if (channels.find(channel_name) == channels.end())
+        return;
+
+    Channel &channel = channels[channel_name];
+
+    if (!channel.is_channel_operator(client))
+        return;
+
+    Client *target = CheckUserExistance2(kick[2]);
+    if (!target)
+        return;
+
+    if (!channel.is_channel_user(*target))
+        return;
+
+    std::string msg = ":" + client.get_nick() + "!" +
+                      client.get_user() + "@localhost KICK " +
+                      channel_name + " " + kick[2] + "\r\n";
+
+    // 🔥 broadcast do wszystkich userów kanału
+    std::map<int, Client>& users = channel.get_users_map();
+    for (std::map<int, Client>::iterator it = users.begin();
+         it != users.end(); ++it)
+    {
+        send(it->first, msg.c_str(), msg.size(), 0);
+    }
+
+    // usuń usera z kanału
+    channel.remove_user_from_channel(*target);
+}
 
 void print_splitted_mode(std::vector<ModeSplit> res){
 	for (size_t i = 0; i < res.size(); i++)
@@ -484,21 +497,36 @@ int Server::CheckInput(const std::vector<char> buffer, int n, Client &client)
         passwd(client, command_split(trimCRLF(buf)));
     else if (buf.substr(0, 4) == "NICK")
         nick(client, command_split(trimCRLF(buf)));
-    else if (buf.compare(0, 4, "USER") == 0)
-    {
-        // USER bart 0 * :Bartosz\r\n
-        size_t pos = buf.find(' ');
-        if (pos != std::string::npos)
-        {
-            size_t start = pos + 1;
-            size_t end = buf.find(' ', start);
-            if (end != std::string::npos)
-            {
-                std::string username = buf.substr(start, end - start);
-                client.set_username(username);
-            }
-        }
-    }
+	else if (buf.compare(0, 4, "USER") == 0)
+	{
+		std::vector<std::string> tokens = command_split(trimCRLF(buf));
+
+		if (tokens.size() < 5)
+			return 0;
+
+		client.set_username(tokens[1]);
+
+		// Jeśli jest dwukropek → wszystko po nim to realname
+		size_t colon_pos = buf.find(':');
+		if (colon_pos != std::string::npos)
+		{
+			std::string realname = buf.substr(colon_pos + 1);
+			client.set_realname(realname);
+		}
+		else
+		{
+			// brak ':' → realname to 4-ty token
+			client.set_realname(tokens[4]);
+		}
+
+		client.set_has_user(true);
+
+		std::cout << "USER parsed: "
+				<< client.get_user()
+				<< " | "
+				<< client.get_realname()
+				<< std::endl;
+	}
 	else if (buf.compare(0, 6, "INVITE") == 0)
 		InviteHandler(client, command_split(trimCRLF(buf)));
 	else if (buf.compare(0, 4, "MODE") == 0)
@@ -511,6 +539,10 @@ int Server::CheckInput(const std::vector<char> buffer, int n, Client &client)
 		KickHandler(client, command_split(trimCRLF(buf)));
 	else if (buf.compare(0, 5, "TOPIC") == 0)
 		TopicHandler(client, command_split(trimCRLF(buf)));
+	else if (buf.compare(0, 4, "LIST") == 0)
+    	ListHandler(client, command_split(trimCRLF(buf)));
+	else if (buf.compare(0, 3, "WHO") == 0)
+    	WhoHandler(client, command_split(trimCRLF(buf)));
 
     // 🔑 AUTORYZACJA IRC (PO KAŻDEJ KOMENDZIE)
     if (!client.get_authenticated()
@@ -601,6 +633,7 @@ void Server::JoinHandler(const std::vector<std::string>& buf, Client& client)
 
         std::string msg = ":" + client.get_nick() + " JOIN " + channel_name + "\r\n";
         send(client.get_fd(), msg.c_str(), msg.size(), 0);
+		NamesHandler(client, channel_name);
         return;
     }
 
@@ -620,12 +653,20 @@ void Server::JoinHandler(const std::vector<std::string>& buf, Client& client)
         channel.remove_invite(client.get_fd());
     }
 
-    // 4️⃣ normalny JOIN
-    if(join(buf, client))
+	if (join(buf, client))
 	{
+		Channel &channel = channels[channel_name];
+
 		std::string msg = ":" + client.get_nick() + " JOIN " + channel_name + "\r\n";
-		send(client.get_fd(), msg.c_str(), msg.size(), 0);
+
+		std::map<int, Client>::iterator it = channel.get_users_map().begin();
+		for (; it != channel.get_users_map().end(); ++it)
+		{
+			send(it->first, msg.c_str(), msg.size(), 0);
+		}
+		NamesHandler(client, channel_name);
 	}
+
 }
 
 void Server::ModeHandler(const std::vector<ModeSplit> &res, Client& client){
@@ -664,3 +705,131 @@ void Channel::broadcastMode(const std::string& mode_change, Client& operator_cli
         send(it->first, message.c_str(), message.size(), 0);
     }
 }
+
+void Server::ListHandler(Client& client, const std::vector<std::string>& cmd)
+{
+    (void)cmd;
+
+    // 321 - start listy
+    std::string start =
+        ":ircserv 321 " +
+        client.get_nick() +
+        " Channel :Users Name\r\n";
+
+    send(client.get_fd(), start.c_str(), start.size(), 0);
+
+    // iteracja po kanałach
+    std::map<std::string, Channel>::iterator it = channels.begin();
+    for (; it != channels.end(); ++it)
+    {
+        Channel& channel = it->second;
+
+        std::stringstream ss;
+        ss << channel.get_users_size();
+
+        std::string topic = channel.get_topic();
+        if (topic.empty())
+            topic = "";
+
+        std::string entry =
+            ":ircserv 322 " +
+            client.get_nick() + " " +
+            channel.get_channel_name() + " " +
+            ss.str() + " :" +
+            topic + "\r\n";
+
+        send(client.get_fd(), entry.c_str(), entry.size(), 0);
+    }
+
+    // 323 - end list
+    std::string end =
+        ":ircserv 323 " +
+        client.get_nick() +
+        " :End of /LIST\r\n";
+
+    send(client.get_fd(), end.c_str(), end.size(), 0);
+}
+
+void Server::WhoHandler(Client& client, const std::vector<std::string>& cmd)
+{
+    if (cmd.size() < 2)
+        return;
+
+    std::string channel_name = cmd[1];
+
+    if (channels.find(channel_name) == channels.end())
+        return;
+
+    Channel& channel = channels[channel_name];
+
+    std::map<int, Client>& users = channel.get_users_map(); // potrzebujesz getter
+
+    for (std::map<int, Client>::iterator it = users.begin(); it != users.end(); ++it)
+    {
+        Client& target = it->second;
+
+        std::string reply =
+            ":ircserv 352 " +
+            client.get_nick() + " " +
+            channel_name + " " +
+            target.get_user() + " localhost ircserv " +
+            target.get_nick() +
+            " H :0 " +
+            target.get_realname() +
+            "\r\n";
+
+        send(client.get_fd(), reply.c_str(), reply.size(), 0);
+    }
+
+    std::string end =
+        ":ircserv 315 " +
+        client.get_nick() + " " +
+        channel_name +
+        " :End of /WHO list\r\n";
+
+    send(client.get_fd(), end.c_str(), end.size(), 0);
+}
+
+void Server::NamesHandler(Client& client, const std::string& channel_name)
+{
+    if (channels.find(channel_name) == channels.end())
+        return;
+
+    Channel& channel = channels[channel_name];
+
+    std::string names_list = "";
+
+    std::map<int, Client>& users = channel.get_users_map();
+
+    for (std::map<int, Client>::iterator it = users.begin(); it != users.end(); ++it)
+    {
+        Client& target = it->second;
+
+        if (channel.is_channel_operator(target))
+            names_list += "@";
+
+        names_list += target.get_nick();
+        names_list += " ";
+    }
+
+    std::string reply =
+        ":ircserv 353 " +
+        client.get_nick() +
+        " = " +
+        channel_name +
+        " :" +
+        names_list +
+        "\r\n";
+
+    send(client.get_fd(), reply.c_str(), reply.size(), 0);
+
+    std::string end =
+        ":ircserv 366 " +
+        client.get_nick() +
+        " " +
+        channel_name +
+        " :End of /NAMES list\r\n";
+
+    send(client.get_fd(), end.c_str(), end.size(), 0);
+}
+

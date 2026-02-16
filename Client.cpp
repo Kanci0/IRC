@@ -14,7 +14,10 @@ int Client::get_fd(){ return fd; };
 std::string Client::get_nick(){ return nickname; };
 std::string Client::get_user(){ return username;};
 std::string Client::get_pass(){ return password; };
+void Client::set_realname(const std::string& name) { realname = name; };
+std::string Client::get_realname() const { return realname; };
 bool Client::get_authenticated(){ return is_authenticated; };
+void Client::set_has_user(bool value) { has_user = value; };
 int Client::get_len() { return len; }
 const std::vector<char>& Client::getBuffer() const { return buffer; }
 void Client::appendToBuffer(const char* data, size_t len){ buffer.insert(buffer.end(), data, data + len); };

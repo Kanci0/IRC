@@ -40,6 +40,9 @@ class Channel {
 		int				get_users_size();
 		bool		 is_channel_operator(Client);
 		bool		 is_channel_user(Client);
+		std::map<int, Client>& get_users_map();
+
+		void broadcastToChannel(const std::string& msg);
 	private:
 		std::string 						channel_name;
 		std::string							topic;

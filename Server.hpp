@@ -6,7 +6,7 @@
 /*   By: bkaleta <bkaleta@student.42warsaw.pl>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/29 21:45:06 by bkaleta           #+#    #+#             */
-/*   Updated: 2026/02/13 14:47:12 by bkaleta          ###   ########.fr       */
+/*   Updated: 2026/02/16 12:01:30 by bkaleta          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -96,6 +96,9 @@ class Server{
 		void KickHandler(Client &client, const std::vector<std::string> &kick); 
 		void InviteHandler(Client &client, const std::vector<std::string> &invite);
 		void TopicHandler(Client &client, const std::vector<std::string> &topic);
+		void ListHandler(Client& client, const std::vector<std::string>& cmd);
+		void WhoHandler(Client& client, const std::vector<std::string>& cmd);
+		void NamesHandler(Client& client, const std::string& channel_name);
 		std::vector<std::string> inputHandler();
 		bool join(const std::vector<std::string>, Client&);
 		void add_topic(Client&, const std::vector<std::string>&);
