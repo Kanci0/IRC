@@ -86,16 +86,30 @@ void Channel::changeMode(const std::vector<ModeSplit>& res, Client& client)
         return;
 
     bool adding = true;
-    size_t param_index = 0;
 
-    for (size_t i = 2; i < res.size(); ++i)
+    size_t param_index = 2;
+
+    while (param_index < res.size())
     {
-        if (res[i].value.size() != 1)
+        std::string v = res[param_index].value;
+
+        if (v == "+" || v == "-")
         {
-            param_index = i;
-            break;
+            param_index++;
+            continue;
         }
+
+        if (v.size() == 1 &&
+            (v[0] == 'i' || v[0] == 't' || v[0] == 'k' ||
+            v[0] == 'l' || v[0] == 'o'))
+        {
+            param_index++;
+            continue;
+        }
+
+        break;
     }
+
 
     for (size_t i = 2; i < res.size(); ++i)
     {
@@ -166,15 +180,22 @@ void Channel::changeMode(const std::vector<ModeSplit>& res, Client& client)
                 broadcastMode("-k", client);
             }
         }
-
+        
         else if (flag == 'l')
         {
+            std::cout << "WITAM W L" << std::endl;
             if (adding)
             {
+                std::cout << "ADDING" << std::endl;
+                for (size_t i = 0; i < res.size(); ++i)
+                    std::cout << i << ": " << res[i].value << std::endl;
+
                 if (param_index >= res.size())
                     return;
 
                 std::string limit_str = res[param_index++].value;
+
+                std::cout << "LIMIT_STR: "<< limit_str << std::endl;
 
                 for (size_t j = 0; j < limit_str.size(); ++j)
                     if (!isdigit(limit_str[j]))
