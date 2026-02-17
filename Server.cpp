@@ -4,6 +4,24 @@ Server::Server(){
 	num_clients = 0;
 }
 
+Server::~Server()
+{
+    std::cout << "Cleaning up server\n";
+
+    for (size_t i = 0; i < Clients.size(); ++i)
+    {
+        close(Clients[i].get_fd());
+    }
+
+    Clients.clear();
+    channels.clear();
+
+    if (socket_fd > 0)
+        close(socket_fd);
+
+    std::cout << "Server destroyed properly.\n";
+}
+
 void passwd(Client &client, const std::vector<std::string> &pass) {
     if (client.get_authenticated() == true) {
                 std::string tmp = "Client " + client.get_nick() + " cannot change password after authentication\r\n";
@@ -383,7 +401,7 @@ void Server::SetClientRead(){
 
 void Server::AcceptClient(){
 		if (FD_ISSET(socket_fd, &read_fds)){
-			Client *tmp = new Client();
+			Client tmp;
 			int new_sock = accept(socket_fd, NULL, NULL);
 			if (new_sock == -1){
 				if (errno == EAGAIN || errno == EWOULDBLOCK){
@@ -392,9 +410,9 @@ void Server::AcceptClient(){
 				}	
 			}
 			set_nonblocking(new_sock);
-			tmp->set_fd(new_sock);
+			tmp.set_fd(new_sock);
 			num_clients++;
-			AddClient(*tmp);
+			AddClient(tmp);
 		}
 };
 

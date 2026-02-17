@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Server.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: bkaleta <bkaleta@student.42warsaw.pl>      +#+  +:+       +#+        */
+/*   By: marvin <marvin@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/29 21:45:06 by bkaleta           #+#    #+#             */
-/*   Updated: 2026/02/16 12:01:30 by bkaleta          ###   ########.fr       */
+/*   Updated: 2026/02/16 23:45:16 by marvin           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -72,6 +72,7 @@ class Server{
 		fd_set read_fds;
 	public:
 		Server();
+		~Server();
 		int SetSocketFd();
 		void SetMaxFd(int set);
 		void SetNumClients(int set);
